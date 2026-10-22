@@ -1,36 +1,47 @@
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 #include "solver.h"
 
-// Тестовые случаи
 typedef struct {
     char puzzle[100];
-    char expected[100];
+    char name[20];
 } TestCase;
 
 TestCase tests[] = {
-    {"SEND + MORE = MONEY", "9567 + 1085 = 10652"},
-    {"FORTY + TEN + TEN = SIXTY", ""},
-    {"ELEVEN + NINE + FIVE + FIVE = THIRTY", ""},
+    {"SEND + MORE = MONEY", "T1"},
+    {"FORTY + TEN + TEN = SIXTY", "T2"},
+    {"ELEVEN + NINE + FIVE + FIVE = THIRTY", "T3"},
+    {"BE + BE = MOO", "T4"},
 };
 
 int main() {
-    printf("Cryptarithmetic Solver--------------------\n\n");
+    printf("=== Cryptarithmetic Solver - V0 ===\n");
+    printf("========================================\n\n");
     
-    for (int i = 0; i < 3; i++) {
-        char result[100] = {0};
+    int num_tests = 4;
+    
+    for (int i = 0; i < num_tests; i++) {
+        printf("Test %s: %s\n", tests[i].name, tests[i].puzzle);
         
-        printf("Test %d: %s\n", i+1, tests[i].puzzle);
+        char result[1000] = {0};
         
-        double start = clock();
+        // Замер времени
+        struct timespec start, end;
+        clock_gettime(CLOCK_MONOTONIC, &start);
+        
         int found = solve_rebus(tests[i].puzzle, result);
-        double elapsed = (clock() - start) / CLOCKS_PER_SEC;
+        
+        clock_gettime(CLOCK_MONOTONIC, &end);
+        double elapsed = (end.tv_sec - start.tv_sec) + 
+                        (end.tv_nsec - start.tv_nsec) / 1e9;
         
         if (found) {
-            printf("Solution: %s\n", result);
-            printf("Time: %.6f sec\n\n", elapsed);
+            printf("✓ Solution: %s\n", result);
+            printf("  Time: %.6f sec\n\n", elapsed);
         } else {
-            printf("No solution found\n\n");
+            printf("✗ No solution found\n");
+            printf("  Time: %.6f sec\n\n", elapsed);
         }
     }
     
