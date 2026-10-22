@@ -6,84 +6,87 @@
 
 int find_letter_index(Puzzle* puzzle, char letter) {
     for (int i = 0; i < puzzle->n_letters; i++) {
-        if (puzzle->letters[i] == letter) {
-            return i;
-        }
+        if (puzzle->letters[i] == letter) return i;
     }
     return -1;
 }
 
 void collect_letters(const char* puzzle_str, Puzzle* puzzle) {
     puzzle->n_letters = 0;
-    memset(puzzle->letters, 0, 10);
     
     for (int i = 0; puzzle_str[i] && puzzle->n_letters < 10; i++) {
         char c = puzzle_str[i];
-        if (isalpha(c) && isupper(c)) {
-
-            int found = 0;
-            for (int j = 0; j < puzzle->n_letters; j++) {
-                if (puzzle->letters[j] == c) {
-                    found = 1;
-                    break;
-                }
+        if (!isalpha(c) || !isupper(c)) continue;
+        
+        int found = 0;
+        for (int j = 0; j < puzzle->n_letters; j++) {
+            if (puzzle->letters[j] == c) {
+                found = 1;
+                break;
             }
-            
-            if (!found) {
-                puzzle->letters[puzzle->n_letters++] = c;
-            }
+        }
+        
+        if (!found) {
+            puzzle->letters[puzzle->n_letters++] = c;
         }
     }
 }
 
 void parse_puzzle(const char* puzzle_str, Puzzle* puzzle) {
-    const char* eq_pos = strchr(puzzle_str, '=');
-    if (!eq_pos) return;
+    const char* eq = strchr(puzzle_str, '=');
+    if (!eq) return;
     
-    int left_len = eq_pos - puzzle_str;
-    char* left_part = (char*)malloc(left_len + 1);
-    strncpy(left_part, puzzle_str, left_len);
-    left_part[left_len] = '\0';
+    int left_len = eq - puzzle_str;
+    char left[200], right[100];
     
-    const char* right_part = eq_pos + 1;
-    while (*right_part == ' ') right_part++;
+    strncpy(left, puzzle_str, left_len);
+    left[left_len] = '\0';
     
-    puzzle->result = (char*)malloc(strlen(right_part) + 1);
-    strcpy(puzzle->result, right_part);
+    strcpy(right, eq + 1);
     
-    int j = 0;
-    for (int i = 0; puzzle->result[i]; i++) {
-        if (puzzle->result[i] != ' ') {
-            puzzle->result[j++] = puzzle->result[i];
+    for (int i = 0; right[i]; i++) {
+        if (right[i] == ' ') {
+            for (int j = i; right[j]; j++) {
+                right[j] = right[j+1];
+            }
+            i--;
         }
     }
-    puzzle->result[j] = '\0';
+    
+    puzzle->result = (char*)malloc(strlen(right) + 1);
+    strcpy(puzzle->result, right);
     
     puzzle->n_addends = 0;
-    char* copy = (char*)malloc(strlen(left_part) + 1);
-    strcpy(copy, left_part);
+    int word_start = 0;
     
-    char* token = strtok(copy, "+");
-    while (token && puzzle->n_addends < 10) {
-        while (*token == ' ') token++;
-        
-        int len = strlen(token);
-        while (len > 0 && token[len-1] == ' ') {
-            token[len-1] = '\0';
-            len--;
+    for (int i = 0; left[i]; i++) {
+        if (left[i] == '+' || left[i] == '\0') {
+            int len = i - word_start;
+            
+            while (word_start < i && left[word_start] == ' ') word_start++;
+            while (len > 0 && left[word_start + len - 1] == ' ') len--;
+            
+            if (len > 0 && puzzle->n_addends < 10) {
+                puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
+                strncpy(puzzle->addends[puzzle->n_addends], left + word_start, len);
+                puzzle->addends[puzzle->n_addends][len] = '\0';
+                puzzle->n_addends++;
+            }
+            
+            word_start = i + 1;
         }
-        
-        if (len > 0) {
-            puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
-            strcpy(puzzle->addends[puzzle->n_addends], token);
-            puzzle->n_addends++;
-        }
-        
-        token = strtok(NULL, "+");
     }
     
-    free(copy);
-    free(left_part);
+    int len = strlen(left) - word_start;
+    while (word_start < (int)strlen(left) && left[word_start] == ' ') word_start++;
+    while (len > 0 && left[word_start + len - 1] == ' ') len--;
+    
+    if (len > 0 && puzzle->n_addends < 10) {
+        puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
+        strncpy(puzzle->addends[puzzle->n_addends], left + word_start, len);
+        puzzle->addends[puzzle->n_addends][len] = '\0';
+        puzzle->n_addends++;
+    }
 }
 
 void mark_leading(Puzzle* puzzle) {
@@ -92,18 +95,12 @@ void mark_leading(Puzzle* puzzle) {
     }
     
     for (int a = 0; a < puzzle->n_addends; a++) {
-        char first = puzzle->addends[a][0];
-        int idx = find_letter_index(puzzle, first);
-        if (idx >= 0) {
-            puzzle->is_leading[idx] = 1;
-        }
+        int idx = find_letter_index(puzzle, puzzle->addends[a][0]);
+        if (idx >= 0) puzzle->is_leading[idx] = 1;
     }
     
-    char first = puzzle->result[0];
-    int idx = find_letter_index(puzzle, first);
-    if (idx >= 0) {
-        puzzle->is_leading[idx] = 1;
-    }
+    int idx = find_letter_index(puzzle, puzzle->result[0]);
+    if (idx >= 0) puzzle->is_leading[idx] = 1;
 }
 
 void compute_coeffs(Puzzle* puzzle) {
@@ -116,8 +113,7 @@ void compute_coeffs(Puzzle* puzzle) {
         int len = strlen(word);
         
         for (int pos = 0; pos < len; pos++) {
-            char letter = word[pos];
-            int idx = find_letter_index(puzzle, letter);
+            int idx = find_letter_index(puzzle, word[pos]);
             if (idx < 0) continue;
             
             int64_t weight = 1;
@@ -133,8 +129,7 @@ void compute_coeffs(Puzzle* puzzle) {
     int len = strlen(word);
     
     for (int pos = 0; pos < len; pos++) {
-        char letter = word[pos];
-        int idx = find_letter_index(puzzle, letter);
+        int idx = find_letter_index(puzzle, word[pos]);
         if (idx < 0) continue;
         
         int64_t weight = 1;
@@ -150,18 +145,15 @@ int64_t compute_number(const char* word, Puzzle* puzzle, int digit_map[10]) {
     int64_t num = 0;
     
     for (int i = 0; word[i]; i++) {
-        char letter = word[i];
-        int letter_idx = find_letter_index(puzzle, letter);
-        if (letter_idx < 0) continue;
+        int idx = find_letter_index(puzzle, word[i]);
+        if (idx < 0) continue;
         
-        int digit = digit_map[letter_idx];
-        num = num * 10 + digit;
+        num = num * 10 + digit_map[idx];
     }
     
     return num;
 }
 
-// Проверить корректность
 int verify_solution(Puzzle* puzzle, int digit_map[10]) {
     int64_t sum = 0;
     
@@ -200,26 +192,18 @@ int dfs_v0(Puzzle* puzzle, int k, int used_digits, int64_t partial_sum,
            int digit_map[10], char* result) {
     
     if (k == puzzle->n_letters) {
-        if (partial_sum == 0) {
-            if (verify_solution(puzzle, digit_map)) {
-                format_result(puzzle, digit_map, result);
-                return 1;
-            }
+        if (partial_sum == 0 && verify_solution(puzzle, digit_map)) {
+            format_result(puzzle, digit_map, result);
+            return 1;
         }
         return 0;
     }
     
     int letter_idx = k;
-    char letter = puzzle->letters[letter_idx];
     
     for (int digit = 0; digit <= 9; digit++) {
-        if (used_digits & (1 << digit)) {
-            continue;
-        }
-        
-        if (digit == 0 && puzzle->is_leading[letter_idx]) {
-            continue;
-        }
+        if (used_digits & (1 << digit)) continue;
+        if (digit == 0 && puzzle->is_leading[letter_idx]) continue;
         
         digit_map[letter_idx] = digit;
         
@@ -237,16 +221,9 @@ int dfs_v0(Puzzle* puzzle, int k, int used_digits, int64_t partial_sum,
 int solve_rebus(const char* puzzle_str, char* result) {
     Puzzle puzzle = {0};
     
-    puzzle.n_letters = 0;
-    puzzle.n_addends = 0;
-    puzzle.result = NULL;
-    
     collect_letters(puzzle_str, &puzzle);
-    
     parse_puzzle(puzzle_str, &puzzle);
-    
     compute_coeffs(&puzzle);
-    
     mark_leading(&puzzle);
     
     int digit_map[10];
@@ -257,13 +234,9 @@ int solve_rebus(const char* puzzle_str, char* result) {
     int found = dfs_v0(&puzzle, 0, 0, 0, digit_map, result);
     
     for (int i = 0; i < puzzle.n_addends; i++) {
-        if (puzzle.addends[i]) {
-            free(puzzle.addends[i]);
-        }
+        if (puzzle.addends[i]) free(puzzle.addends[i]);
     }
-    if (puzzle.result) {
-        free(puzzle.result);
-    }
+    if (puzzle.result) free(puzzle.result);
     
     return found;
 }
