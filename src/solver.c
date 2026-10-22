@@ -33,59 +33,66 @@ void collect_letters(const char* puzzle_str, Puzzle* puzzle) {
 }
 
 void parse_puzzle(const char* puzzle_str, Puzzle* puzzle) {
-    const char* eq = strchr(puzzle_str, '=');
+    char copy[500];
+    strcpy(copy, puzzle_str);
+    
+    char* eq = strchr(copy, '=');
     if (!eq) return;
     
-    int left_len = eq - puzzle_str;
-    char left[200], right[100];
+    *eq = '\0';
+    char* left = copy;
+    char* right = eq + 1;
     
-    strncpy(left, puzzle_str, left_len);
-    left[left_len] = '\0';
-    
-    strcpy(right, eq + 1);
-    
-    for (int i = 0; right[i]; i++) {
-        if (right[i] == ' ') {
-            for (int j = i; right[j]; j++) {
-                right[j] = right[j+1];
-            }
-            i--;
-        }
-    }
-    
+    while (*right == ' ') right++;
     puzzle->result = (char*)malloc(strlen(right) + 1);
     strcpy(puzzle->result, right);
     
     puzzle->n_addends = 0;
-    int word_start = 0;
     
-    for (int i = 0; left[i]; i++) {
-        if (left[i] == '+' || left[i] == '\0') {
-            int len = i - word_start;
+    char* current = left;
+    char temp[100];
+    int pos = 0;
+    
+    for (int i = 0; current[i]; i++) {
+        if (current[i] == '+' || current[i] == '\0') {
+            temp[pos] = '\0';
             
-            while (word_start < i && left[word_start] == ' ') word_start++;
-            while (len > 0 && left[word_start + len - 1] == ' ') len--;
+            int start = 0;
+            while (start < pos && temp[start] == ' ') start++;
             
-            if (len > 0 && puzzle->n_addends < 10) {
+            int end = pos - 1;
+            while (end >= start && temp[end] == ' ') end--;
+            
+            if (end >= start && puzzle->n_addends < 10) {
+                int len = end - start + 1;
                 puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
-                strncpy(puzzle->addends[puzzle->n_addends], left + word_start, len);
+                strncpy(puzzle->addends[puzzle->n_addends], temp + start, len);
                 puzzle->addends[puzzle->n_addends][len] = '\0';
                 puzzle->n_addends++;
             }
             
-            word_start = i + 1;
+            pos = 0;
+        } else {
+            temp[pos++] = current[i];
         }
     }
     
-    int len = strlen(left) - word_start;
-    while (word_start < (int)strlen(left) && left[word_start] == ' ') word_start++;
-    while (len > 0 && left[word_start + len - 1] == ' ') len--;
-    
-    if (len > 0 && puzzle->n_addends < 10) {
-        puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
-        strncpy(puzzle->addends[puzzle->n_addends], left + word_start, len);
-        puzzle->addends[puzzle->n_addends][len] = '\0';
-        puzzle->n_addends++;
+    if (pos > 0) {
+        temp[pos] = '\0';
+        
+        int start = 0;
+        while (start < pos && temp[start] == ' ') start++;
+        
+        int end = pos - 1;
+        while (end >= start && temp[end] == ' ') end--;
+        
+        if (end >= start && puzzle->n_addends < 10) {
+            int len = end - start + 1;
+            puzzle->addends[puzzle->n_addends] = (char*)malloc(len + 1);
+            strncpy(puzzle->addends[puzzle->n_addends], temp + start, len);
+            puzzle->addends[puzzle->n_addends][len] = '\0';
+            puzzle->n_addends++;
+        }
     }
 }
 
