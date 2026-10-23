@@ -121,7 +121,7 @@ int main() {
     printf("=== Cryptarithmetic Solver - V0 ===\n");
     printf("========================================\n\n");
     
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 105; i++) {
         printf("Test %s: %s\n", tests[i].name, tests[i].puzzle);
         
         char result[1000] = {0};
